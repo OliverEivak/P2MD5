@@ -1,48 +1,64 @@
 package com.github.olivereivak.p2md5.server;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.concurrent.BlockingQueue;
+
+import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.model.HttpResponse;
 
 public class HttpRequestHandler implements Runnable {
 
-    final static String CRLF = "\r\n";
+    private static final String SERVER_NAME = "SimpleHttpServer";
+    private static final String CRLF = "\r\n";
 
-    Socket socket;
+    private BlockingQueue<HttpRequest> requestQueue;
 
-    OutputStream output;
+    private Socket socket;
 
-    BufferedReader br;
+    private OutputStream output;
 
-    public HttpRequestHandler(Socket socket) throws Exception {
+    private BufferedReader br;
+
+    public HttpRequestHandler(Socket socket, BlockingQueue<HttpRequest> requestQueue) throws Exception {
         this.socket = socket;
         this.output = socket.getOutputStream();
         this.br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.requestQueue = requestQueue;
     }
 
     public void run() {
         try {
-            processRequest();
+            requestQueue.add(parseRequest());
+            respondOK();
+
+            br.close();
+            output.close();
+            socket.close();
         } catch (Exception e) {
             System.out.println(e);
+            try {
+                respondError();
+            } catch (IOException e1) {
+                System.out.println(e);
+            }
         }
     }
 
-    private void processRequest() throws Exception {
+    private HttpRequest parseRequest() throws Exception {
+        HttpRequest request = new HttpRequest();
 
         String headerLine = br.readLine();
         StringTokenizer tokenizer = new StringTokenizer(headerLine);
-        String method = tokenizer.nextToken();
-        String uri = tokenizer.nextToken();
-        String version = tokenizer.nextToken();
-
-        System.out.println("Method=" + method);
-        System.out.println("Uri=" + uri);
-        System.out.println("Version=" + version);
+        request.setMethod(tokenizer.nextToken());
+        request.setUri(tokenizer.nextToken());
+        request.setVersion(tokenizer.nextToken());
 
         Map<String, String> headers = new HashMap<>();
         while (true) {
@@ -54,29 +70,30 @@ public class HttpRequestHandler implements Runnable {
             String[] tokens = headerLine.split(":\\s", 2);
             headers.put(tokens[0], tokens[1]);
         }
+        request.setHeaders(headers);
 
-        headers.keySet().stream().forEach(key -> System.out.println(key + "=" + headers.get(key)));
+        request.setIp(socket.getInetAddress());
+        request.setPort(socket.getPort());
 
-        String statusLine = "HTTP/1.0 200 OK" + CRLF;
-        String serverLine = "Server: Simple Java Http Server" + CRLF;
-        String contentTypeLine = "text/html" + CRLF;
-        String entityBody = "<HTML>" + "<HEAD><TITLE>Test title</TITLE></HEAD>" + "<BODY>Hi" + "<br>This is text. "
-                + "Wow.</BODY></HTML>";
-        String contentLengthLine = "Content-Length: " + entityBody.length() + CRLF;
+        return request;
+    }
 
-        output.write(statusLine.getBytes());
-        output.write(serverLine.getBytes());
-        output.write(contentTypeLine.getBytes());
-        output.write(contentLengthLine.getBytes());
+    private void respondOK() throws IOException {
+        HttpResponse response = new HttpResponse();
+        response.setStatus(HttpResponse.HTTP_OK);
+        response.setServer(SERVER_NAME);
+        response.setContentType("text/html");
+        response.setBody("<html><body>Hello world!</body></html>");
+        output.write(response.getBytes());
+    }
 
-        output.write(CRLF.getBytes());
-
-        output.write(entityBody.getBytes());
-
-        output.close();
-        br.close();
-        socket.close();
-
+    private void respondError() throws IOException {
+        HttpResponse response = new HttpResponse();
+        response.setStatus(HttpResponse.HTTP_INTERNAL_ERROR);
+        response.setServer(SERVER_NAME);
+        response.setContentType("text/html");
+        response.setBody("<html><body><b>Internal Server Error</b></body></html>");
+        output.write(response.getBytes());
     }
 
 }

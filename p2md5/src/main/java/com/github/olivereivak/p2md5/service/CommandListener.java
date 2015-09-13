@@ -1,14 +1,17 @@
-package com.github.olivereivak.p2md5;
+package com.github.olivereivak.p2md5.service;
 
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import com.github.olivereivak.p2md5.model.Command;
 
 public class CommandListener implements Runnable {
 
-    BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
+    BlockingQueue<Command> commandQueue;
+
+    public CommandListener(BlockingQueue<Command> commandQueue) {
+        this.commandQueue = commandQueue;
+    }
 
     @Override
     public void run() {
@@ -25,10 +28,6 @@ public class CommandListener implements Runnable {
                 commandQueue.add(new Command(tokens[0], tokens[1]));
             }
         }
-    }
-
-    public void setCommandQueue(BlockingQueue<Command> commandQueue) {
-        this.commandQueue = commandQueue;
     }
 
 }
