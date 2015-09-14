@@ -17,9 +17,10 @@ public class ResourceReply {
         this.resource = resource;
     }
 
-    public String toString() {
+    public String toJson() {
         // TODO: use something better
-        return "{ ";
+        return "{ \"ip\": \"" + ip + "\", \"port\": \"" + port + "\", \"id\": \"" + id + "\", \"resource\": \""
+                + resource + "\" }";
     }
 
     public String getIp() {

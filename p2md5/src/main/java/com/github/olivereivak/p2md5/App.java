@@ -18,8 +18,10 @@ public class App {
 
     private BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
+    private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
 
     private SimpleHttpServer simpleHttpServer = null;
+    RequestProcessor requestProcessor = null;
 
     public static void main(String[] args) throws InterruptedException {
         App app = new App();
@@ -59,14 +61,15 @@ public class App {
             thread.setName("http-server");
             thread.setDaemon(true);
             thread.start();
+
+            requestProcessor.setOutputPort(simpleHttpServer.getPort());
         } else {
             System.out.println("SimpleHttpServer already running on port " + simpleHttpServer.getPort());
         }
     }
 
     private void startRequestProcessor() {
-        RequestProcessor requestProcessor = new RequestProcessor(arrivedRequests);
-        requestProcessor.setOutputPort(simpleHttpServer.getPort());
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests);
 
         Thread thread = new Thread(requestProcessor);
         thread.setName("request-processor");

@@ -15,13 +15,14 @@ import com.github.olivereivak.p2md5.model.protocol.ResourceReply;
 
 public class RequestProcessor implements Runnable {
 
+    private static final SecureRandom random = new SecureRandom();
+
     private BlockingQueue<HttpRequest> requestQueue;
+    private BlockingQueue<HttpRequest> outgoingQueue;
 
     private int outputPort;
 
-    private static final SecureRandom random = new SecureRandom();
-
-    public RequestProcessor(BlockingQueue<HttpRequest> requestQueue) {
+    public RequestProcessor(BlockingQueue<HttpRequest> requestQueue, BlockingQueue<HttpRequest> outgoingQueue) {
         this.requestQueue = requestQueue;
     }
 
@@ -38,7 +39,7 @@ public class RequestProcessor implements Runnable {
 
     }
 
-    private void processRequest(HttpRequest request) {
+    private void processRequest(HttpRequest request) throws InterruptedException {
         System.out.println("RequestProcessor: " + request.getMethod() + " " + request.getUri());
 
         MultiValueMap<String, String> queryParams = parseQueryParams(request.getUri());
@@ -53,7 +54,8 @@ public class RequestProcessor implements Runnable {
 
     }
 
-    private void processResourceRequest(HttpRequest request, MultiValueMap<String, String> queryParams) {
+    private void processResourceRequest(HttpRequest request, MultiValueMap<String, String> queryParams)
+            throws InterruptedException {
         Optional<String> sendip = queryParams.getCollection("sendip").stream().findFirst();
         Optional<String> sendport = queryParams.getCollection("sendport").stream().findFirst();
         Optional<String> ttl = queryParams.getCollection("ttl").stream().findFirst();
@@ -69,9 +71,9 @@ public class RequestProcessor implements Runnable {
             response.setIp(request.getIp());
             response.setPort(request.getPort());
             ResourceReply resourceReply = new ResourceReply(getIp(), outputPort, id.orElse(""), 100);
-            response.setBody(resourceReply.toString());
+            response.setBody(resourceReply.toJson());
 
-            // TODO: put in queue
+            outgoingQueue.put(response);
             // must add headers when sending
         }
 
@@ -83,9 +85,15 @@ public class RequestProcessor implements Runnable {
             Collection<String> forwardTTL = forwardParams.getCollection("ttl");
             forwardTTL = Arrays.asList(String.valueOf(newTTL));
 
+            Collection<String> forwardNoAsk = forwardParams.getCollection("noask");
+            forwardNoAsk.add(getIp());
+
             // TODO: build uri from params
             String uri = "/resource" + "";
             HttpRequest forward = new HttpRequest("GET", uri, "HTTP/1.0");
+
+            // TODO: broadcast to all known ip's:
+            // outgoingQueue.put(forward);
         }
 
     }
