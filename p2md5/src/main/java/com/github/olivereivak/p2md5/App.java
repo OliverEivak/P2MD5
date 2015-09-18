@@ -5,6 +5,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.github.olivereivak.p2md5.model.Command;
 import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
 import com.github.olivereivak.p2md5.service.CommandListener;
 import com.github.olivereivak.p2md5.service.RequestProcessor;
@@ -31,6 +32,7 @@ public class App {
     private void init() throws InterruptedException {
         startCommandListener();
         startRequestProcessor();
+        startRequestSender();
 
         run();
     }
@@ -75,6 +77,17 @@ public class App {
         thread.setName("request-processor");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private void startRequestSender() {
+        HttpRequestSender requestSender = new HttpRequestSender(outgoingRequests);
+
+        Thread thread = new Thread(requestSender);
+        thread.setName("request-sender");
+        thread.setDaemon(true);
+        thread.start();
+
+        requestSender.setOutputPort(simpleHttpServer.getPort());
     }
 
     private void executeCommand(Command command) {

@@ -20,13 +20,14 @@ import com.github.olivereivak.p2md5.model.HttpRequest;
 public class RequestProcessorTest {
 
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
+    private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
 
     private RequestProcessor requestProcessor;
     private Thread thread;
 
     @Before
     public void startThread() {
-        requestProcessor = new RequestProcessor(arrivedRequests);
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests);
 
         thread = new Thread(requestProcessor);
         thread.setName("request-processor");
@@ -67,6 +68,17 @@ public class RequestProcessorTest {
     public void parseQueryParamsOnlySlash() {
         MultiValueMap<String, String> queryParams = requestProcessor.parseQueryParams("/");
         assertNotNull(queryParams);
+    }
+
+    @Test
+    public void queryParamsToString() {
+        MultiValueMap<String, String> queryParams = new MultiValueMap<>();
+        queryParams.put("key1", "value1");
+        queryParams.put("key2", "test1");
+        queryParams.put("key2", "test2");
+        queryParams.put("key3", "value3");
+        String queryString = requestProcessor.queryParamsToString(queryParams);
+        assertEquals("key1=value1&key2=test1&key2=test2&key3=value3", queryString);
     }
 
 }

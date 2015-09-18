@@ -24,6 +24,7 @@ public class RequestProcessor implements Runnable {
 
     public RequestProcessor(BlockingQueue<HttpRequest> requestQueue, BlockingQueue<HttpRequest> outgoingQueue) {
         this.requestQueue = requestQueue;
+        this.outgoingQueue = outgoingQueue;
     }
 
     @Override
@@ -88,11 +89,10 @@ public class RequestProcessor implements Runnable {
             Collection<String> forwardNoAsk = forwardParams.getCollection("noask");
             forwardNoAsk.add(getIp());
 
-            // TODO: build uri from params
-            String uri = "/resource" + "";
+            String uri = "/resource?" + queryParamsToString(forwardParams);
             HttpRequest forward = new HttpRequest("GET", uri, "HTTP/1.0");
 
-            // TODO: broadcast to all known ip's:
+            // TODO: broadcast to all known ip's except those in noask params.
             // outgoingQueue.put(forward);
         }
 
@@ -123,6 +123,22 @@ public class RequestProcessor implements Runnable {
         }
 
         return queryParams;
+    }
+
+    /**
+     * Protected for testing purposes.
+     */
+    protected String queryParamsToString(MultiValueMap<String, String> queryParams) {
+        String queryString = "";
+
+        for (String key : queryParams.keySet()) {
+            Collection<String> values = queryParams.getCollection(key);
+            for (String value : values) {
+                queryString += key + "=" + value + "&";
+            }
+        }
+
+        return queryString.substring(0, queryString.length() - 1);
     }
 
     private String getIp() {
