@@ -14,6 +14,7 @@ public class App {
 
     private static final String COMMAND_EXIT = "exit";
     private static final String COMMAND_START = "start";
+    private static final String COMMAND_CRACK = "crack";
 
     private static final int DEFAULT_PORT = 5678;
 
@@ -103,6 +104,12 @@ public class App {
             case COMMAND_EXIT:
                 System.out.println("Exiting application. ");
                 System.exit(0);
+                break;
+            case COMMAND_CRACK:
+                if (!command.getParameter().isEmpty()) {
+                    System.out.println("Starting to crack md5 hash.");
+
+                }
                 break;
         }
     }

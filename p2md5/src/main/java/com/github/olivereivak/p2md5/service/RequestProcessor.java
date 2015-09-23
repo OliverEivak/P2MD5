@@ -63,7 +63,7 @@ public class RequestProcessor implements Runnable {
         Optional<String> id = queryParams.getCollection("id").stream().findFirst();
         Collection<String> noask = queryParams.getCollection("noask");
 
-        boolean sendResponse = false;
+        boolean sendResponse = true;
         boolean sendForward = true;
 
         // TODO: check if we already have work
@@ -94,6 +94,7 @@ public class RequestProcessor implements Runnable {
 
             // TODO: broadcast to all known ip's except those in noask params.
             // outgoingQueue.put(forward);
+
         }
 
     }

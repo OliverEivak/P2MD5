@@ -5,6 +5,8 @@ import java.util.Map;
 
 public class HttpRequest {
 
+    private static final String CRLF = "\r\n";
+
     private String method;
 
     private String uri;
@@ -28,6 +30,32 @@ public class HttpRequest {
         this.method = method;
         this.uri = uri;
         this.version = version;
+    }
+
+    public byte[] getBytes() {
+        if (method.equals("GET")) {
+            return getGetRequest();
+        } else {
+            return getPostRequest();
+        }
+    }
+
+    public byte[] getPostRequest() {
+        String request = "";
+        request += method + " " + uri + "HTTP/1.0 " + CRLF;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            request += entry.getKey() + ": " + entry.getValue() + CRLF;
+        }
+        request += "Content-Length: " + body.length() + CRLF;
+        request += CRLF;
+        request += body;
+        return request.getBytes();
+    }
+
+    public byte[] getGetRequest() {
+        String request = "";
+        request += method + " " + uri + "HTTP/1.0 " + CRLF;
+        return request.getBytes();
     }
 
     public String getMethod() {
