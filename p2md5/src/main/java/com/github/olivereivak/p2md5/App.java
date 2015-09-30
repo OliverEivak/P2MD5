@@ -5,6 +5,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.github.olivereivak.p2md5.model.Command;
 import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.model.MD5Result;
+import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
 import com.github.olivereivak.p2md5.service.CommandListener;
@@ -21,6 +23,9 @@ public class App {
     private BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
+
+    private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
+    private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
 
     private SimpleHttpServer simpleHttpServer = null;
     RequestProcessor requestProcessor = null;
@@ -72,7 +77,7 @@ public class App {
     }
 
     private void startRequestProcessor() {
-        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests);
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work);
 
         Thread thread = new Thread(requestProcessor);
         thread.setName("request-processor");

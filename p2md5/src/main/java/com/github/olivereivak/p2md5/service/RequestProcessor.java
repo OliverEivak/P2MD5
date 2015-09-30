@@ -10,7 +10,9 @@ import java.util.concurrent.BlockingQueue;
 
 import org.apache.commons.collections4.map.MultiValueMap;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.model.protocol.ResourceReply;
 
 public class RequestProcessor implements Runnable {
@@ -19,12 +21,15 @@ public class RequestProcessor implements Runnable {
 
     private BlockingQueue<HttpRequest> requestQueue;
     private BlockingQueue<HttpRequest> outgoingQueue;
+    private BlockingQueue<CheckMD5> work;
 
     private int outputPort;
 
-    public RequestProcessor(BlockingQueue<HttpRequest> requestQueue, BlockingQueue<HttpRequest> outgoingQueue) {
+    public RequestProcessor(BlockingQueue<HttpRequest> requestQueue, BlockingQueue<HttpRequest> outgoingQueue,
+            BlockingQueue<CheckMD5> work) {
         this.requestQueue = requestQueue;
         this.outgoingQueue = outgoingQueue;
+        this.work = work;
     }
 
     @Override
@@ -49,6 +54,9 @@ public class RequestProcessor implements Runnable {
             switch (request.getUri()) {
                 case "resource":
                     processResourceRequest(request, queryParams);
+                    break;
+                case "checkMD5":
+                    processCheckRequest(request);
                     break;
             }
         }
@@ -97,6 +105,17 @@ public class RequestProcessor implements Runnable {
 
         }
 
+    }
+
+    private void processCheckRequest(HttpRequest request) {
+        ObjectMapper mapper = new ObjectMapper();
+        CheckMD5 checkMD5;
+        try {
+            checkMD5 = mapper.readValue(request.getBody(), CheckMD5.class);
+        } catch (Exception e) {
+            return;
+        }
+        work.add(checkMD5);
     }
 
     /**
