@@ -35,7 +35,7 @@ public class HttpRequestSender implements Runnable {
         System.out.println("HttpRequestSender: " + request.getMethod() + " " + request.getUri());
 
         try {
-            Socket socket = new Socket(request.getIp(), request.getPort(), null, outputPort);
+            Socket socket = new Socket(request.getIp(), request.getPort());
             OutputStream output = socket.getOutputStream();
             output.write(request.getBytes());
 

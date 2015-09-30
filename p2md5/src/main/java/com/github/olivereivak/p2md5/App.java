@@ -87,8 +87,6 @@ public class App {
         thread.setName("request-sender");
         thread.setDaemon(true);
         thread.start();
-
-        requestSender.setOutputPort(simpleHttpServer.getPort());
     }
 
     private void executeCommand(Command command) {

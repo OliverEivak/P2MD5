@@ -2,6 +2,10 @@ package com.github.olivereivak.p2md5.service;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Matcher;
+
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
 
 public class MD5Cracker implements Runnable {
 
@@ -11,37 +15,56 @@ public class MD5Cracker implements Runnable {
 
     private String hash;
 
+    private MessageDigest messageDigest;
+
+    private static final int START_CHAR = 32;
+    private static final int END_CHAR = 126;
+
     @Override
     public void run() {
 
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                crack();
-            } catch (Exception e) {
-                System.out.println("Error cracking MD5.");
-                break;
-            }
+        long start = System.nanoTime();
+        try {
+            work(range);
+        } catch (Exception e) {
+            System.out.println("Error cracking MD5.");
         }
+        double duration = (System.nanoTime() - start) / 1000000000;
+        System.out.println("Duration: " + (duration) + " s");
+        int wildcardCount = StringUtils.countMatches(range, '?');
+        double hashes = Math.pow(END_CHAR - START_CHAR - 1, wildcardCount);
+        System.out.println("Hashes: " + hashes);
+        double hps = hashes / duration;
+        System.out.println(hps + " hashes/second");
 
     }
 
-    private String crack() throws NoSuchAlgorithmException {
-        String password = "123456";
-
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(password.getBytes());
-
-        byte byteData[] = md.digest();
-
-        StringBuffer sb = new StringBuffer();
-        // TODO; use apache commons
-        for (int i = 0; i < byteData.length; i++) {
-            sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
+    public MD5Cracker() {
+        try {
+            messageDigest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            messageDigest = null;
         }
+    }
 
-        System.out.println("Digest(in hex format):: " + sb.toString());
+    public void work(String range) {
+        int wildcardCount = StringUtils.countMatches(range, '?');
+        if (wildcardCount > 0) {
+            for (int i = START_CHAR; i < END_CHAR; i++) {
+                if (i == 63) {
+                    continue;
+                }
+                String newRange = range.replaceFirst("\\?", Matcher.quoteReplacement(Character.toString((char) i)));
+                work(newRange);
+            }
+        } else {
+            System.out.println(range + " = " + hash(range));
+        }
+    }
 
-        return "";
+    private String hash(String password) {
+        messageDigest.update(password.getBytes());
+        return Hex.encodeHexString(messageDigest.digest());
     }
 
     public boolean isWorking() {
