@@ -52,10 +52,15 @@ public class RequestProcessor implements Runnable {
 
         if (request.getMethod().equals("GET")) {
             switch (request.getUri()) {
-                case "resource":
+                case "/resource":
                     processResourceRequest(request, queryParams);
                     break;
-                case "checkMD5":
+            }
+        }
+
+        if (request.getMethod().equals("POST")) {
+            switch (request.getUri()) {
+                case "/checkmd5":
                     processCheckRequest(request);
                     break;
             }
@@ -95,7 +100,7 @@ public class RequestProcessor implements Runnable {
             forwardTTL = Arrays.asList(String.valueOf(newTTL));
 
             Collection<String> forwardNoAsk = forwardParams.getCollection("noask");
-            forwardNoAsk.add(getIp());
+            forwardNoAsk.add(getIp() + "_" + outputPort);
 
             String uri = "/resource?" + queryParamsToString(forwardParams);
             HttpRequest forward = new HttpRequest("GET", uri, "HTTP/1.0");
@@ -111,8 +116,10 @@ public class RequestProcessor implements Runnable {
         ObjectMapper mapper = new ObjectMapper();
         CheckMD5 checkMD5;
         try {
-            checkMD5 = mapper.readValue(request.getBody(), CheckMD5.class);
+            String body = request.getBody();
+            checkMD5 = mapper.readValue(body, CheckMD5.class);
         } catch (Exception e) {
+            e.printStackTrace();
             return;
         }
         work.add(checkMD5);

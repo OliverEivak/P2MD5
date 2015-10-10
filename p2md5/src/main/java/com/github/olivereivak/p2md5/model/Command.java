@@ -1,10 +1,12 @@
 package com.github.olivereivak.p2md5.model;
 
+import java.util.List;
+
 public class Command {
 
     private String command;
 
-    private String parameter;
+    private List<String> parameters;
 
     public String getCommand() {
         return command;
@@ -14,18 +16,18 @@ public class Command {
         this.command = command;
     }
 
-    public String getParameter() {
-        return parameter;
+    public List<String> getParameters() {
+        return parameters;
     }
 
-    public void setParameter(String parameter) {
-        this.parameter = parameter;
+    public void setParameters(List<String> parameters) {
+        this.parameters = parameters;
     }
 
-    public Command(String command, String parameter) {
+    public Command(String command, List<String> parameters) {
         super();
         this.command = command;
-        this.parameter = parameter;
+        this.parameters = parameters;
     }
 
 }

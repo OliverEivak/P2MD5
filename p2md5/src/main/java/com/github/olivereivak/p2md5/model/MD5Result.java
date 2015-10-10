@@ -2,18 +2,47 @@ package com.github.olivereivak.p2md5.model;
 
 public class MD5Result {
 
-    private String range;
+    private String ip;
+
+    private int port;
+
+    private String id;
 
     private String hash;
 
     private String match;
 
-    public String getRange() {
-        return range;
+    public MD5Result(String ip, int port, String id, String hash, String match) {
+        super();
+        this.ip = ip;
+        this.port = port;
+        this.id = id;
+        this.hash = hash;
+        this.match = match;
     }
 
-    public void setRange(String range) {
-        this.range = range;
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getHash() {

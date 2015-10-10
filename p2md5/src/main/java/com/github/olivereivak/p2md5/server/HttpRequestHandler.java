@@ -72,6 +72,17 @@ public class HttpRequestHandler implements Runnable {
         }
         request.setHeaders(headers);
 
+        int contentLength = headers.entrySet().stream().filter(header -> header.getKey().equals("Content-Length"))
+                .mapToInt(entry -> Integer.valueOf(entry.getValue())).findFirst().orElse(0);
+        int receivedLength = 0;
+
+        StringBuilder sb = new StringBuilder();
+        while (receivedLength < contentLength) {
+            sb.append((char) br.read());
+            receivedLength++;
+        }
+        request.setBody(sb.toString());
+
         request.setIp(socket.getInetAddress());
         request.setPort(socket.getPort());
 
@@ -83,7 +94,7 @@ public class HttpRequestHandler implements Runnable {
         response.setStatus(HttpResponse.HTTP_OK);
         response.setServer(SERVER_NAME);
         response.setContentType("text/html");
-        response.setBody("<html><body>Hello world!</body></html>");
+        response.setBody("0");
         output.write(response.getBytes());
     }
 

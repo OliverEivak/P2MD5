@@ -10,6 +10,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.olivereivak.p2md5.model.MD5Result;
+import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 
 public class MD5Cracker implements Runnable {
 
@@ -19,33 +20,23 @@ public class MD5Cracker implements Runnable {
 
     private boolean working;
 
-    private String range;
+    private String match = null;
 
-    private String hash;
+    private long startTime;
+
+    private double hashesTotal = 0;
+
+    private double hashesDone;
 
     private MessageDigest messageDigest;
 
     private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
 
-    @Override
-    public void run() {
+    private CheckMD5 checkMD5;
 
-        long start = System.nanoTime();
-
-        work(range);
-
-        double duration = (System.nanoTime() - start) / 1000000000;
-        System.out.println("Duration: " + (duration) + " s");
-        int wildcardCount = StringUtils.countMatches(range, '?');
-        double hashes = Math.pow(END_CHAR - START_CHAR - 1, wildcardCount);
-        System.out.println("Hashes: " + hashes);
-        double hps = hashes / duration;
-        System.out.println(hps + " hashes/second");
-
-    }
-
-    public MD5Cracker(BlockingQueue<MD5Result> results) {
+    public MD5Cracker(BlockingQueue<MD5Result> results, CheckMD5 checkMD5) {
         this.results = results;
+        this.checkMD5 = checkMD5;
 
         try {
             messageDigest = MessageDigest.getInstance("MD5");
@@ -54,7 +45,40 @@ public class MD5Cracker implements Runnable {
         }
     }
 
+    @Override
+    public void run() {
+        startTime = System.nanoTime();
+
+        working = true;
+        for (String range : checkMD5.getRanges()) {
+            System.out.println(
+                    "[" + Thread.currentThread().getName() + "] range=" + range + " hash=" + checkMD5.getMd5());
+
+            int wildcardCount = StringUtils.countMatches(range, '?');
+            hashesTotal += Math.pow(END_CHAR - START_CHAR - 1, wildcardCount);
+
+            work(range);
+        }
+        saveMatch();
+        working = false;
+
+        printProgress();
+        System.out.println("[" + Thread.currentThread().getName() + "] finished");
+    }
+
+    private void printProgress() {
+        double duration = (System.nanoTime() - startTime) / 1000000000;
+        double hps = hashesDone / duration;
+        System.out.println("[" + Thread.currentThread().getName() + "] " + hashesDone + "/" + hashesTotal + " time="
+                + duration + " hps=" + hps);
+    }
+
     public void work(String range) {
+        // Stop working if match is found
+        if (match != null) {
+            return;
+        }
+
         int wildcardCount = StringUtils.countMatches(range, '?');
         if (wildcardCount > 0) {
             for (int i = START_CHAR; i < END_CHAR; i++) {
@@ -65,15 +89,16 @@ public class MD5Cracker implements Runnable {
                 work(newRange);
             }
         } else {
-            String hashValue = hash(range);
-            if (hashValue.equals(hash)) {
-                MD5Result result = new MD5Result();
-                result.setRange(this.range);
-                result.setHash(this.hash);
-                result.setMatch(range);
-                results.add(result);
+            hashesDone++;
+            if (hashesDone % 1000000 == 0) {
+                printProgress();
             }
-            System.out.println(range + " = " + hashValue);
+
+            String hashValue = hash(range);
+            if (hashValue.equals(checkMD5.getMd5())) {
+                match = range;
+            }
+            // System.out.println(range + " = " + hashValue);
         }
     }
 
@@ -82,24 +107,16 @@ public class MD5Cracker implements Runnable {
         return Hex.encodeHexString(messageDigest.digest());
     }
 
+    private void saveMatch() {
+        if (match != null) {
+            MD5Result result = new MD5Result(checkMD5.getIp(), checkMD5.getPort(), checkMD5.getId(), checkMD5.getMd5(),
+                    match);
+            results.add(result);
+        }
+    }
+
     public boolean isWorking() {
         return working;
-    }
-
-    public String getRange() {
-        return range;
-    }
-
-    public void setRange(String range) {
-        this.range = range;
-    }
-
-    public String getHash() {
-        return hash;
-    }
-
-    public void setHash(String hash) {
-        this.hash = hash;
     }
 
 }

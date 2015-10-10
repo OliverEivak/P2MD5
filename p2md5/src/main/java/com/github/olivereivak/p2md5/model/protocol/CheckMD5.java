@@ -2,6 +2,9 @@ package com.github.olivereivak.p2md5.model.protocol;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CheckMD5 {
 
     private String ip;
@@ -13,6 +16,10 @@ public class CheckMD5 {
     private String md5;
 
     private List<String> ranges;
+
+    public CheckMD5() {
+
+    }
 
     public CheckMD5(String ip, int port, String id, String md5, List<String> ranges) {
         super();

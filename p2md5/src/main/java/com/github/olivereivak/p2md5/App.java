@@ -1,7 +1,11 @@
 package com.github.olivereivak.p2md5;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 import com.github.olivereivak.p2md5.model.Command;
 import com.github.olivereivak.p2md5.model.HttpRequest;
@@ -10,6 +14,7 @@ import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
 import com.github.olivereivak.p2md5.service.CommandListener;
+import com.github.olivereivak.p2md5.service.MD5Cracker;
 import com.github.olivereivak.p2md5.service.RequestProcessor;
 
 public class App {
@@ -19,16 +24,18 @@ public class App {
     private static final String COMMAND_CRACK = "crack";
 
     private static final int DEFAULT_PORT = 5678;
+    private static final int MAX_WORKERS = 4;
 
     private BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
 
+    private List<Thread> workers = new ArrayList<>();
     private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
     private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
 
     private SimpleHttpServer simpleHttpServer = null;
-    RequestProcessor requestProcessor = null;
+    private RequestProcessor requestProcessor = null;
 
     public static void main(String[] args) throws InterruptedException {
         App app = new App();
@@ -45,30 +52,38 @@ public class App {
 
     private void run() throws InterruptedException {
         while (true) {
+            // Execute commands
             if (!commandQueue.isEmpty()) {
                 executeCommand(commandQueue.take());
             }
+
+            // Check if all workers are alive
+            workers = workers.stream().filter(worker -> worker.isAlive()).collect(Collectors.toList());
+
+            // Start new workers
+            if (!work.isEmpty() && workers.size() < MAX_WORKERS) {
+                startMD5Cracker(work.take());
+            }
+
+            // Show results -> TODO: send results back
+            if (!results.isEmpty()) {
+                MD5Result result = results.take();
+                System.out.println("Match: " + result.getMatch());
+            }
+
             Thread.sleep(100);
         }
     }
 
     private void startCommandListener() {
         CommandListener commandListener = new CommandListener(commandQueue);
-
-        Thread thread = new Thread(commandListener);
-        thread.setName("command-listener");
-        thread.setDaemon(true);
-        thread.start();
+        newThread(commandListener, "command-listener");
     }
 
     private void startSimpleHttpServer(int port) {
         if (simpleHttpServer == null) {
             simpleHttpServer = new SimpleHttpServer(port, arrivedRequests);
-
-            Thread thread = new Thread(simpleHttpServer);
-            thread.setName("http-server");
-            thread.setDaemon(true);
-            thread.start();
+            newThread(simpleHttpServer, "http-server");
 
             requestProcessor.setOutputPort(simpleHttpServer.getPort());
         } else {
@@ -78,28 +93,26 @@ public class App {
 
     private void startRequestProcessor() {
         requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work);
-
-        Thread thread = new Thread(requestProcessor);
-        thread.setName("request-processor");
-        thread.setDaemon(true);
-        thread.start();
+        newThread(requestProcessor, "request-processor");
     }
 
     private void startRequestSender() {
         HttpRequestSender requestSender = new HttpRequestSender(outgoingRequests);
+        newThread(requestSender, "request-sender");
+    }
 
-        Thread thread = new Thread(requestSender);
-        thread.setName("request-sender");
-        thread.setDaemon(true);
-        thread.start();
+    private void startMD5Cracker(CheckMD5 checkMD5) {
+        MD5Cracker md5Cracker = new MD5Cracker(results, checkMD5);
+        Thread thread = newThread(md5Cracker, "md5-cracker-" + (workers.size() + 1));
+        workers.add(thread);
     }
 
     private void executeCommand(Command command) {
         switch (command.getCommand()) {
             case COMMAND_START:
                 int port = DEFAULT_PORT;
-                if (!command.getParameter().isEmpty()) {
-                    port = Integer.valueOf(command.getParameter());
+                if (!command.getParameters().isEmpty()) {
+                    port = Integer.valueOf(command.getParameters().get(0));
                 }
                 System.out.println("Starting SimpleHttpServer on port " + port + ".");
                 startSimpleHttpServer(port);
@@ -109,12 +122,26 @@ public class App {
                 System.exit(0);
                 break;
             case COMMAND_CRACK:
-                if (!command.getParameter().isEmpty()) {
+                if (!command.getParameters().isEmpty()) {
                     System.out.println("Starting to crack md5 hash.");
-
+                    int sendPort = DEFAULT_PORT;
+                    if (simpleHttpServer != null) {
+                        sendPort = simpleHttpServer.getPort();
+                    }
+                    CheckMD5 checkMD5 = new CheckMD5("127.0.0.1", sendPort, "1", command.getParameters().get(1),
+                            Arrays.asList(command.getParameters().get(0)));
+                    startMD5Cracker(checkMD5);
                 }
                 break;
         }
+    }
+
+    private Thread newThread(Runnable target, String name) {
+        Thread thread = new Thread(target);
+        thread.setName(name);
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
     }
 
 }
