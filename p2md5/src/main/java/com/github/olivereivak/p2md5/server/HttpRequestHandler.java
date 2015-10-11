@@ -10,10 +10,15 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.olivereivak.p2md5.model.HttpRequest;
 import com.github.olivereivak.p2md5.model.HttpResponse;
 
 public class HttpRequestHandler implements Runnable {
+
+    private static Logger logger = LoggerFactory.getLogger(HttpRequestHandler.class);
 
     private static final String SERVER_NAME = "SimpleHttpServer";
     private static final String CRLF = "\r\n";
@@ -42,11 +47,11 @@ public class HttpRequestHandler implements Runnable {
             output.close();
             socket.close();
         } catch (Exception e) {
-            System.out.println(e);
+            logger.error("Error handling request. ", e);
             try {
                 respondError();
             } catch (IOException e1) {
-                System.out.println(e);
+                logger.error("Error sending error response. ", e);
             }
         }
     }

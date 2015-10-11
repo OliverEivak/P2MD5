@@ -5,9 +5,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.olivereivak.p2md5.model.HttpRequest;
 
 public class SimpleHttpServer implements Runnable {
+
+    private static Logger logger = LoggerFactory.getLogger(SimpleHttpServer.class);
 
     private BlockingQueue<HttpRequest> requestQueue;
 
@@ -35,11 +40,11 @@ public class SimpleHttpServer implements Runnable {
                     requestHandler.setDaemon(true);
                     requestHandler.start();
                 } catch (Exception e) {
-                    System.out.println(e);
+                    logger.error("Error creating new HttpRequestHandler.", e);
                 }
             }
         } catch (IOException e) {
-            System.out.println(e);
+            logger.error("Server error. ", e);
         }
 
     }

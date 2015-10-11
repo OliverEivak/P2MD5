@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.commons.collections4.map.MultiValueMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.olivereivak.p2md5.model.HttpRequest;
@@ -16,6 +18,8 @@ import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.model.protocol.ResourceReply;
 
 public class RequestProcessor implements Runnable {
+
+    private static Logger logger = LoggerFactory.getLogger(RequestProcessor.class);
 
     private static final SecureRandom random = new SecureRandom();
 
@@ -46,7 +50,7 @@ public class RequestProcessor implements Runnable {
     }
 
     private void processRequest(HttpRequest request) throws InterruptedException {
-        System.out.println("RequestProcessor: " + request.getMethod() + " " + request.getUri());
+        logger.debug("Processing request {} {}", request.getMethod(), request.getUri());
 
         MultiValueMap<String, String> queryParams = parseQueryParams(request.getUri());
 
@@ -172,7 +176,7 @@ public class RequestProcessor implements Runnable {
         try {
             return InetAddress.getLocalHost().toString();
         } catch (UnknownHostException e) {
-            System.out.println(e);
+            logger.error("Error getting ip. ", e);
             return "";
         }
     }

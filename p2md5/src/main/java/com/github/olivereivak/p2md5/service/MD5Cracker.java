@@ -8,11 +8,15 @@ import java.util.regex.Matcher;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.olivereivak.p2md5.model.MD5Result;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 
 public class MD5Cracker implements Runnable {
+
+    private static Logger logger = LoggerFactory.getLogger(MD5Cracker.class);
 
     private static final int END_CHAR = 126;
 
@@ -51,8 +55,7 @@ public class MD5Cracker implements Runnable {
 
         working = true;
         for (String range : checkMD5.getRanges()) {
-            System.out.println(
-                    "[" + Thread.currentThread().getName() + "] range=" + range + " hash=" + checkMD5.getMd5());
+            logger.debug("range={} hash={}", range, checkMD5.getMd5());
 
             int wildcardCount = StringUtils.countMatches(range, '?');
             hashesTotal += Math.pow(END_CHAR - START_CHAR - 1, wildcardCount);
@@ -63,14 +66,13 @@ public class MD5Cracker implements Runnable {
         working = false;
 
         printProgress();
-        System.out.println("[" + Thread.currentThread().getName() + "] finished");
+        logger.debug("Finished.");
     }
 
     private void printProgress() {
         double duration = (System.nanoTime() - startTime) / 1000000000;
         double hps = hashesDone / duration;
-        System.out.println("[" + Thread.currentThread().getName() + "] " + hashesDone + "/" + hashesTotal + " time="
-                + duration + " hps=" + hps);
+        logger.debug("{}/{} time={} hps={}", hashesDone, hashesTotal, duration, hps);
     }
 
     public void work(String range) {
@@ -98,7 +100,6 @@ public class MD5Cracker implements Runnable {
             if (hashValue.equals(checkMD5.getMd5())) {
                 match = range;
             }
-            // System.out.println(range + " = " + hashValue);
         }
     }
 

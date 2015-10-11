@@ -1,15 +1,24 @@
 package com.github.olivereivak.p2md5;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.olivereivak.p2md5.model.Command;
 import com.github.olivereivak.p2md5.model.HttpRequest;
 import com.github.olivereivak.p2md5.model.MD5Result;
+import com.github.olivereivak.p2md5.model.Peer;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
@@ -17,14 +26,18 @@ import com.github.olivereivak.p2md5.service.CommandListener;
 import com.github.olivereivak.p2md5.service.MD5Cracker;
 import com.github.olivereivak.p2md5.service.RequestProcessor;
 
+import utils.FileUtils;
+
 public class App {
+
+    private static Logger logger = LoggerFactory.getLogger(App.class);
 
     private static final String COMMAND_EXIT = "exit";
     private static final String COMMAND_START = "start";
     private static final String COMMAND_CRACK = "crack";
 
     private static final int DEFAULT_PORT = 5678;
-    private static final int MAX_WORKERS = 4;
+    private static final int MAX_WORKERS = 2;
 
     private BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
@@ -37,6 +50,8 @@ public class App {
     private SimpleHttpServer simpleHttpServer = null;
     private RequestProcessor requestProcessor = null;
 
+    private List<Peer> peers = new ArrayList<>();
+
     public static void main(String[] args) throws InterruptedException {
         App app = new App();
         app.init();
@@ -46,6 +61,8 @@ public class App {
         startCommandListener();
         startRequestProcessor();
         startRequestSender();
+
+        peers = getPeers();
 
         run();
     }
@@ -68,7 +85,7 @@ public class App {
             // Show results -> TODO: send results back
             if (!results.isEmpty()) {
                 MD5Result result = results.take();
-                System.out.println("Match: " + result.getMatch());
+                logger.debug("Match: {}", result.getMatch());
             }
 
             Thread.sleep(100);
@@ -87,7 +104,7 @@ public class App {
 
             requestProcessor.setOutputPort(simpleHttpServer.getPort());
         } else {
-            System.out.println("SimpleHttpServer already running on port " + simpleHttpServer.getPort());
+            logger.warn("SimpleHttpServer already running on port {}", simpleHttpServer.getPort());
         }
     }
 
@@ -103,45 +120,78 @@ public class App {
 
     private void startMD5Cracker(CheckMD5 checkMD5) {
         MD5Cracker md5Cracker = new MD5Cracker(results, checkMD5);
-        Thread thread = newThread(md5Cracker, "md5-cracker-" + (workers.size() + 1));
+        Thread thread = newThread(md5Cracker, getMD5CrackerThreadName());
         workers.add(thread);
     }
 
-    private void executeCommand(Command command) {
+    private String getMD5CrackerThreadName() {
+        List<String> usedNames = new ArrayList<>();
+        for (Thread worker : workers) {
+            usedNames.add(worker.getName());
+        }
+
+        for (int i = 1; i <= MAX_WORKERS; i++) {
+            if (!usedNames.contains("md5-cracker-" + i)) {
+                return "md5-cracker-" + i;
+            }
+        }
+        return "md5-cracker  ";
+    }
+
+    private void executeCommand(Command command) throws InterruptedException {
         switch (command.getCommand()) {
             case COMMAND_START:
                 int port = DEFAULT_PORT;
                 if (!command.getParameters().isEmpty()) {
                     port = Integer.valueOf(command.getParameters().get(0));
                 }
-                System.out.println("Starting SimpleHttpServer on port " + port + ".");
+                logger.info("Starting SimpleHttpServer on port {}", port);
                 startSimpleHttpServer(port);
                 break;
             case COMMAND_EXIT:
-                System.out.println("Exiting application. ");
+                logger.info("Exiting application.");
                 System.exit(0);
                 break;
             case COMMAND_CRACK:
                 if (!command.getParameters().isEmpty()) {
-                    System.out.println("Starting to crack md5 hash.");
+                    logger.info("Starting to crack md5 hash.");
                     int sendPort = DEFAULT_PORT;
                     if (simpleHttpServer != null) {
                         sendPort = simpleHttpServer.getPort();
                     }
                     CheckMD5 checkMD5 = new CheckMD5("127.0.0.1", sendPort, "1", command.getParameters().get(1),
                             Arrays.asList(command.getParameters().get(0)));
-                    startMD5Cracker(checkMD5);
+                    work.put(checkMD5);
                 }
                 break;
         }
     }
 
     private Thread newThread(Runnable target, String name) {
+        logger.info("Starting {}", name);
         Thread thread = new Thread(target);
         thread.setName(name);
         thread.setDaemon(true);
         thread.start();
         return thread;
+    }
+
+    private List<Peer> getPeers() {
+        ObjectMapper mapper = new ObjectMapper();
+        InputStream from = FileUtils.getFileAsStream("machines.txt");
+        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {
+        };
+
+        HashMap<String, String> machines = new HashMap<>();
+        try {
+            machines = mapper.readValue(from, typeRef);
+        } catch (IOException e) {
+            logger.error("Failed to map ip & port data. ", e);
+        }
+
+        return machines.entrySet().stream() //
+                .map(entry -> new Peer(entry.getKey(), Integer.valueOf(entry.getValue()))) //
+                .collect(Collectors.toList());
     }
 
 }

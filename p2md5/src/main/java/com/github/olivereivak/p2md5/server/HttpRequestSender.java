@@ -6,9 +6,14 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.olivereivak.p2md5.model.HttpRequest;
 
 public class HttpRequestSender implements Runnable {
+
+    private static Logger logger = LoggerFactory.getLogger(HttpRequestSender.class);
 
     private BlockingQueue<HttpRequest> outgoingQueue;
 
@@ -32,7 +37,7 @@ public class HttpRequestSender implements Runnable {
     }
 
     private void sendRequest(HttpRequest request) throws InterruptedException {
-        System.out.println("HttpRequestSender: " + request.getMethod() + " " + request.getUri());
+        logger.debug("Sending request {} {}", request.getMethod(), request.getUri());
 
         try {
             Socket socket = new Socket(request.getIp(), request.getPort());
@@ -43,7 +48,7 @@ public class HttpRequestSender implements Runnable {
             output.close();
             socket.close();
         } catch (Exception e) {
-            System.out.println("HttpRequestSender: Failed to create socket on port " + outputPort);
+            logger.error("Failed to create socket on port " + outputPort, e);
         }
 
     }
@@ -52,7 +57,7 @@ public class HttpRequestSender implements Runnable {
         try {
             return InetAddress.getLocalHost().toString();
         } catch (UnknownHostException e) {
-            System.out.println(e);
+            logger.error("Failed to get ip. ", e);
             return "";
         }
     }
