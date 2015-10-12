@@ -3,7 +3,10 @@ package com.github.olivereivak.p2md5.service;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -15,6 +18,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.model.Peer;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 
 @RunWith(EasyMockRunner.class)
@@ -23,13 +27,14 @@ public class RequestProcessorTest {
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
     private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
+    private List<Peer> peers = Collections.synchronizedList(new ArrayList<>());
 
     private RequestProcessor requestProcessor;
     private Thread thread;
 
     @Before
     public void startThread() {
-        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work);
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work, peers);
 
         thread = new Thread(requestProcessor);
         thread.setName("request-processor");

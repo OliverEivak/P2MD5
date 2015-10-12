@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -49,7 +50,7 @@ public class App {
     private SimpleHttpServer simpleHttpServer;
     private RequestProcessor requestProcessor;
 
-    private List<Peer> peers = new ArrayList<>();
+    private List<Peer> peers = Collections.synchronizedList(new ArrayList<>());
 
     public static void main(String[] args) throws InterruptedException {
         App app = new App();
@@ -110,7 +111,7 @@ public class App {
     }
 
     private void startRequestProcessor() {
-        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work);
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work, peers);
         newThread(requestProcessor, "request-processor");
     }
 

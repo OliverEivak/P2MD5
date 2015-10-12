@@ -17,11 +17,12 @@ public class ResourceReply {
         this.resource = resource;
     }
 
-    public String toJson() {
-        // TODO: use something better
-        return "{ \"ip\": \"" + ip + "\", \"port\": \"" + port + "\", \"id\": \"" + id + "\", \"resource\": \""
-                + resource + "\" }";
-    }
+    // public String toJson() {
+    // // TODO: use something better
+    // return "{ \"ip\": \"" + ip + "\", \"port\": \"" + port + "\", \"id\": \""
+    // + id + "\", \"resource\": \""
+    // + resource + "\" }";
+    // }
 
     public String getIp() {
         return ip;

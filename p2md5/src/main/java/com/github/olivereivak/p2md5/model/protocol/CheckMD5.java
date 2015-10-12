@@ -70,7 +70,7 @@ public class CheckMD5 {
         this.ranges = ranges;
     }
 
-    // TODO
+    // TODO: wildcard and symbolRange
     // private String wildcard;
     // private String symbolRange;
 
