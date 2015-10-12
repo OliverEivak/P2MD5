@@ -1,10 +1,9 @@
 package com.github.olivereivak.p2md5;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,24 +12,23 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.olivereivak.p2md5.model.Command;
 import com.github.olivereivak.p2md5.model.HttpRequest;
-import com.github.olivereivak.p2md5.model.MD5Result;
 import com.github.olivereivak.p2md5.model.Peer;
+import com.github.olivereivak.p2md5.model.protocol.AnswerMD5;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
 import com.github.olivereivak.p2md5.service.CommandListener;
 import com.github.olivereivak.p2md5.service.MD5Cracker;
+import com.github.olivereivak.p2md5.service.PeerService;
 import com.github.olivereivak.p2md5.service.RequestProcessor;
-
-import utils.FileUtils;
 
 public class App {
 
     private static Logger logger = LoggerFactory.getLogger(App.class);
+
+    private static final String MACHINES_URL = "http://dijkstra.cs.ttu.ee/~Oliver.Eivak/machines.txt";
 
     private static final String COMMAND_EXIT = "exit";
     private static final String COMMAND_START = "start";
@@ -38,6 +36,7 @@ public class App {
 
     private static final int DEFAULT_PORT = 5678;
     private static final int MAX_WORKERS = 2;
+    public static final int MAX_WORK_IN_QUEUE = 2;
 
     private BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
     private BlockingQueue<HttpRequest> arrivedRequests = new LinkedBlockingQueue<>();
@@ -45,10 +44,10 @@ public class App {
 
     private List<Thread> workers = new ArrayList<>();
     private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
-    private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
+    private BlockingQueue<AnswerMD5> results = new LinkedBlockingQueue<>();
 
-    private SimpleHttpServer simpleHttpServer = null;
-    private RequestProcessor requestProcessor = null;
+    private SimpleHttpServer simpleHttpServer;
+    private RequestProcessor requestProcessor;
 
     private List<Peer> peers = new ArrayList<>();
 
@@ -62,7 +61,8 @@ public class App {
         startRequestProcessor();
         startRequestSender();
 
-        peers = getPeers();
+        peers.addAll(PeerService.getPeersFromFile("machines.txt"));
+        peers.addAll(PeerService.getPeersFromURL(MACHINES_URL));
 
         run();
     }
@@ -70,7 +70,7 @@ public class App {
     private void run() throws InterruptedException {
         while (true) {
             // Execute commands
-            if (!commandQueue.isEmpty()) {
+            while (!commandQueue.isEmpty()) {
                 executeCommand(commandQueue.take());
             }
 
@@ -78,14 +78,15 @@ public class App {
             workers = workers.stream().filter(worker -> worker.isAlive()).collect(Collectors.toList());
 
             // Start new workers
-            if (!work.isEmpty() && workers.size() < MAX_WORKERS) {
+            while (!work.isEmpty() && workers.size() < MAX_WORKERS) {
                 startMD5Cracker(work.take());
             }
 
-            // Show results -> TODO: send results back
-            if (!results.isEmpty()) {
-                MD5Result result = results.take();
-                logger.debug("Match: {}", result.getMatch());
+            // Send results back
+            while (!results.isEmpty()) {
+                AnswerMD5 result = results.take();
+                logger.debug("Sending result: {}", result.getMatch());
+                sendAnswer(result);
             }
 
             Thread.sleep(100);
@@ -138,6 +139,18 @@ public class App {
         return "md5-cracker  ";
     }
 
+    private void sendAnswer(AnswerMD5 result) {
+        try {
+            HttpRequest request = new HttpRequest("POST", InetAddress.getByName(result.getIp()), result.getPort(),
+                    "/answermd5", "1.0");
+            outgoingRequests.put(request);
+        } catch (UnknownHostException e) {
+            logger.error("Failed to get InetAddress for request receiver. ", e);
+        } catch (InterruptedException e) {
+            logger.error("Failed to put request into queue. ", e);
+        }
+    }
+
     private void executeCommand(Command command) throws InterruptedException {
         switch (command.getCommand()) {
             case COMMAND_START:
@@ -174,24 +187,6 @@ public class App {
         thread.setDaemon(true);
         thread.start();
         return thread;
-    }
-
-    private List<Peer> getPeers() {
-        ObjectMapper mapper = new ObjectMapper();
-        InputStream from = FileUtils.getFileAsStream("machines.txt");
-        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {
-        };
-
-        HashMap<String, String> machines = new HashMap<>();
-        try {
-            machines = mapper.readValue(from, typeRef);
-        } catch (IOException e) {
-            logger.error("Failed to map ip & port data. ", e);
-        }
-
-        return machines.entrySet().stream() //
-                .map(entry -> new Peer(entry.getKey(), Integer.valueOf(entry.getValue()))) //
-                .collect(Collectors.toList());
     }
 
 }

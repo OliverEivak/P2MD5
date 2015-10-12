@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.olivereivak.p2md5.model.MD5Result;
+import com.github.olivereivak.p2md5.model.protocol.AnswerMD5;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 
 public class MD5Cracker implements Runnable {
@@ -21,8 +21,6 @@ public class MD5Cracker implements Runnable {
     private static final int END_CHAR = 126;
 
     private static final int START_CHAR = 32;
-
-    private boolean working;
 
     private String match = null;
 
@@ -34,11 +32,11 @@ public class MD5Cracker implements Runnable {
 
     private MessageDigest messageDigest;
 
-    private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
+    private BlockingQueue<AnswerMD5> results = new LinkedBlockingQueue<>();
 
     private CheckMD5 checkMD5;
 
-    public MD5Cracker(BlockingQueue<MD5Result> results, CheckMD5 checkMD5) {
+    public MD5Cracker(BlockingQueue<AnswerMD5> results, CheckMD5 checkMD5) {
         this.results = results;
         this.checkMD5 = checkMD5;
 
@@ -53,7 +51,6 @@ public class MD5Cracker implements Runnable {
     public void run() {
         startTime = System.nanoTime();
 
-        working = true;
         for (String range : checkMD5.getRanges()) {
             logger.debug("range={} hash={}", range, checkMD5.getMd5());
 
@@ -62,8 +59,7 @@ public class MD5Cracker implements Runnable {
 
             work(range);
         }
-        saveMatch();
-        working = false;
+        createResult();
 
         printProgress();
         logger.debug("Finished.");
@@ -108,16 +104,18 @@ public class MD5Cracker implements Runnable {
         return Hex.encodeHexString(messageDigest.digest());
     }
 
-    private void saveMatch() {
+    private void createResult() {
         if (match != null) {
-            MD5Result result = new MD5Result(checkMD5.getIp(), checkMD5.getPort(), checkMD5.getId(), checkMD5.getMd5(),
+            AnswerMD5 result = new AnswerMD5(checkMD5.getIp(), checkMD5.getPort(), checkMD5.getId(), checkMD5.getMd5(),
                     match);
+            result.setResult(AnswerMD5.RESULT_FOUND);
+            results.add(result);
+        } else {
+            AnswerMD5 result = new AnswerMD5(checkMD5.getIp(), checkMD5.getPort(), checkMD5.getId(), checkMD5.getMd5(),
+                    null);
+            result.setResult(AnswerMD5.RESULT_NOT_FOUND);
             results.add(result);
         }
-    }
-
-    public boolean isWorking() {
-        return working;
     }
 
 }

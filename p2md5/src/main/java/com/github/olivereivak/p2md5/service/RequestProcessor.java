@@ -1,5 +1,7 @@
 package com.github.olivereivak.p2md5.service;
 
+import static com.github.olivereivak.p2md5.App.MAX_WORK_IN_QUEUE;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
@@ -50,12 +52,12 @@ public class RequestProcessor implements Runnable {
     }
 
     private void processRequest(HttpRequest request) throws InterruptedException {
-        logger.debug("Processing request {} {}", request.getMethod(), request.getUri());
+        logger.debug("Processing request {} {}", request.getMethod(), request.getPath());
 
-        MultiValueMap<String, String> queryParams = parseQueryParams(request.getUri());
+        MultiValueMap<String, String> queryParams = parseQueryParams(request.getPath());
 
         if (request.getMethod().equals("GET")) {
-            switch (request.getUri()) {
+            switch (request.getPath()) {
                 case "/resource":
                     processResourceRequest(request, queryParams);
                     break;
@@ -63,7 +65,7 @@ public class RequestProcessor implements Runnable {
         }
 
         if (request.getMethod().equals("POST")) {
-            switch (request.getUri()) {
+            switch (request.getPath()) {
                 case "/checkmd5":
                     processCheckRequest(request);
                     break;
@@ -83,11 +85,8 @@ public class RequestProcessor implements Runnable {
         boolean sendResponse = true;
         boolean sendForward = true;
 
-        // TODO: check if we already have work
-        if (sendResponse) {
-            HttpRequest response = new HttpRequest("POST", "/resourcereply", "HTTP/1.0");
-            response.setIp(request.getIp());
-            response.setPort(request.getPort());
+        if (work.size() < MAX_WORK_IN_QUEUE) {
+            HttpRequest response = new HttpRequest("POST", request.getIp(), request.getPort(), "/resourcereply", "1.0");
             ResourceReply resourceReply = new ResourceReply(getIp(), outputPort, id.orElse(""), 100);
             response.setBody(resourceReply.toJson());
 
@@ -107,7 +106,8 @@ public class RequestProcessor implements Runnable {
             forwardNoAsk.add(getIp() + "_" + outputPort);
 
             String uri = "/resource?" + queryParamsToString(forwardParams);
-            HttpRequest forward = new HttpRequest("GET", uri, "HTTP/1.0");
+            // TODO
+            // HttpRequest forward = new HttpRequest("GET", , 1, uri, "1.0");
 
             // TODO: broadcast to all known ip's except those in noask params.
             // outgoingQueue.put(forward);

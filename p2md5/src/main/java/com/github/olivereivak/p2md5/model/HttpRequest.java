@@ -9,7 +9,7 @@ public class HttpRequest {
 
     private String method;
 
-    private String uri;
+    private String path;
 
     private String version;
 
@@ -25,14 +25,20 @@ public class HttpRequest {
 
     }
 
-    public HttpRequest(String method, String uri, String version) {
+    public HttpRequest(String method, InetAddress ip, int port, String path, String version) {
         super();
         this.method = method;
-        this.uri = uri;
+        this.ip = ip;
+        this.port = port;
+        this.path = path;
         this.version = version;
     }
 
     public byte[] getBytes() {
+        return toString().getBytes();
+    }
+
+    public String toString() {
         if (method.equals("GET")) {
             return getGetRequest();
         } else {
@@ -40,22 +46,26 @@ public class HttpRequest {
         }
     }
 
-    public byte[] getPostRequest() {
+    private String getPostRequest() {
         String request = "";
-        request += method + " " + uri + "HTTP/1.0 " + CRLF;
+        request += method + " " + path + " HTTP/" + version + " " + CRLF;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             request += entry.getKey() + ": " + entry.getValue() + CRLF;
         }
         request += "Content-Length: " + body.length() + CRLF;
         request += CRLF;
         request += body;
-        return request.getBytes();
+        return request;
     }
 
-    public byte[] getGetRequest() {
+    private String getGetRequest() {
         String request = "";
-        request += method + " " + uri + "HTTP/1.0 " + CRLF;
-        return request.getBytes();
+        request += method + " " + path + " HTTP/" + version + " " + CRLF;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            request += entry.getKey() + ": " + entry.getValue() + CRLF;
+        }
+        request += CRLF;
+        return request;
     }
 
     public String getMethod() {
@@ -66,12 +76,12 @@ public class HttpRequest {
         this.method = method;
     }
 
-    public String getUri() {
-        return uri;
+    public String getPath() {
+        return path;
     }
 
-    public void setUri(String uri) {
-        this.uri = uri;
+    public void setPath(String path) {
+        this.path = path;
     }
 
     public String getVersion() {

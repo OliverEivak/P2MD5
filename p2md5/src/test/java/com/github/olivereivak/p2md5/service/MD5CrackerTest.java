@@ -11,13 +11,13 @@ import org.easymock.EasyMockRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import com.github.olivereivak.p2md5.model.MD5Result;
+import com.github.olivereivak.p2md5.model.protocol.AnswerMD5;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
 
 @RunWith(EasyMockRunner.class)
 public class MD5CrackerTest {
 
-    private BlockingQueue<MD5Result> results = new LinkedBlockingQueue<>();
+    private BlockingQueue<AnswerMD5> results = new LinkedBlockingQueue<>();
 
     @Test
     public void test() throws InterruptedException {
@@ -36,7 +36,7 @@ public class MD5CrackerTest {
         thread.join();
 
         assertEquals(1, results.size());
-        MD5Result result = results.take();
+        AnswerMD5 result = results.take();
         assertEquals(hash, result.getHash());
         assertEquals(match, result.getMatch());
         assertEquals("1.2.3.4", result.getIp());
@@ -79,7 +79,7 @@ public class MD5CrackerTest {
 
         assertEquals(2, results.size());
 
-        MD5Result result = results.take();
+        AnswerMD5 result = results.take();
 
         if (result.getMatch().equals(match)) {
             assertEquals(hash, result.getHash());

@@ -40,7 +40,7 @@ public class HttpRequestHandler implements Runnable {
 
     public void run() {
         try {
-            requestQueue.add(parseRequest());
+            requestQueue.add(parseRequest(br, socket));
             respondOK();
 
             br.close();
@@ -56,24 +56,26 @@ public class HttpRequestHandler implements Runnable {
         }
     }
 
-    private HttpRequest parseRequest() throws Exception {
+    private static HttpRequest parseRequest(BufferedReader br, Socket socket) throws Exception {
         HttpRequest request = new HttpRequest();
 
         String headerLine = br.readLine();
         StringTokenizer tokenizer = new StringTokenizer(headerLine);
         request.setMethod(tokenizer.nextToken());
-        request.setUri(tokenizer.nextToken());
+        request.setPath(tokenizer.nextToken());
         request.setVersion(tokenizer.nextToken());
 
         Map<String, String> headers = new HashMap<>();
         while (true) {
             headerLine = br.readLine();
-            if (headerLine.equals(CRLF) || headerLine.equals("")) {
+            if (headerLine == null || headerLine.equals(CRLF) || headerLine.equals("")) {
                 break;
             }
 
             String[] tokens = headerLine.split(":\\s", 2);
-            headers.put(tokens[0], tokens[1]);
+            if (tokens.length >= 2) {
+                headers.put(tokens[0], tokens[1]);
+            }
         }
         request.setHeaders(headers);
 
@@ -97,8 +99,10 @@ public class HttpRequestHandler implements Runnable {
     private void respondOK() throws IOException {
         HttpResponse response = new HttpResponse();
         response.setStatus(HttpResponse.HTTP_OK);
-        response.setServer(SERVER_NAME);
-        response.setContentType("text/html");
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Server", SERVER_NAME);
+        headers.put("Content-Type", "text/html");
+        response.setHeaders(headers);
         response.setBody("0");
         output.write(response.getBytes());
     }
@@ -106,8 +110,10 @@ public class HttpRequestHandler implements Runnable {
     private void respondError() throws IOException {
         HttpResponse response = new HttpResponse();
         response.setStatus(HttpResponse.HTTP_INTERNAL_ERROR);
-        response.setServer(SERVER_NAME);
-        response.setContentType("text/html");
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Server", SERVER_NAME);
+        headers.put("Content-Type", "text/html");
+        response.setHeaders(headers);
         response.setBody("<html><body><b>Internal Server Error</b></body></html>");
         output.write(response.getBytes());
     }

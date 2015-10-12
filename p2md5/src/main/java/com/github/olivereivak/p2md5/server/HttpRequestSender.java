@@ -25,7 +25,6 @@ public class HttpRequestSender implements Runnable {
 
     @Override
     public void run() {
-
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 sendRequest(outgoingQueue.take());
@@ -33,11 +32,10 @@ public class HttpRequestSender implements Runnable {
                 Thread.currentThread().interrupt();
             }
         }
-
     }
 
     private void sendRequest(HttpRequest request) throws InterruptedException {
-        logger.debug("Sending request {} {}", request.getMethod(), request.getUri());
+        logger.debug("Sending request {} {}", request.getMethod(), request.getPath());
 
         try {
             Socket socket = new Socket(request.getIp(), request.getPort());

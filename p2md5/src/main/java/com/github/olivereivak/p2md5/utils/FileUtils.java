@@ -1,4 +1,4 @@
-package utils;
+package com.github.olivereivak.p2md5.utils;
 
 import static java.lang.String.format;
 
