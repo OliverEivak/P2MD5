@@ -40,8 +40,13 @@ public class HttpRequestHandler implements Runnable {
 
     public void run() {
         try {
-            requestQueue.add(parseRequest(br, socket));
-            respondOK();
+            HttpRequest httpRequest = parseRequest(br, socket);
+            if (httpRequest != null) {
+                requestQueue.add(httpRequest);
+                respondOK();
+            } else {
+                respondError();
+            }
 
             br.close();
             output.close();
@@ -60,6 +65,11 @@ public class HttpRequestHandler implements Runnable {
         HttpRequest request = new HttpRequest();
 
         String headerLine = br.readLine();
+        if (headerLine == null) {
+            logger.error("Unexpected end of stream while parsing HttpRequest.");
+            return null;
+        }
+
         StringTokenizer tokenizer = new StringTokenizer(headerLine);
         request.setMethod(tokenizer.nextToken());
         request.setPath(tokenizer.nextToken());

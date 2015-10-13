@@ -1,6 +1,7 @@
 package com.github.olivereivak.p2md5.model;
 
 import java.net.InetAddress;
+import java.util.HashMap;
 import java.util.Map;
 
 public class HttpRequest {
@@ -32,6 +33,7 @@ public class HttpRequest {
         this.port = port;
         this.path = path;
         this.version = version;
+        this.headers = new HashMap<>();
     }
 
     public byte[] getBytes() {

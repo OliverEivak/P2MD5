@@ -10,19 +10,17 @@ public class ResourceReply {
 
     private int resource;
 
+    public ResourceReply() {
+
+    }
+
     public ResourceReply(String ip, int port, String id, int resource) {
+        super();
         this.ip = ip;
         this.port = port;
         this.id = id;
         this.resource = resource;
     }
-
-    // public String toJson() {
-    // // TODO: use something better
-    // return "{ \"ip\": \"" + ip + "\", \"port\": \"" + port + "\", \"id\": \""
-    // + id + "\", \"resource\": \""
-    // + resource + "\" }";
-    // }
 
     public String getIp() {
         return ip;

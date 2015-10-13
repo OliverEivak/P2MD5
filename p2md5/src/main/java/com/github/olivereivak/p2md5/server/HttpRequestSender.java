@@ -1,44 +1,48 @@
 package com.github.olivereivak.p2md5.server;
 
 import java.io.OutputStream;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.concurrent.BlockingQueue;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.olivereivak.p2md5.model.HttpRequest;
+import com.github.olivereivak.p2md5.model.Peer;
 
 public class HttpRequestSender implements Runnable {
 
     private static Logger logger = LoggerFactory.getLogger(HttpRequestSender.class);
 
-    private BlockingQueue<HttpRequest> outgoingQueue;
+    private HttpRequest httpRequest;
 
     private int outputPort;
 
-    public HttpRequestSender(BlockingQueue<HttpRequest> outgoingQueue) {
-        this.outgoingQueue = outgoingQueue;
+    private List<Peer> peers;
+
+    public HttpRequestSender(HttpRequest httpRequest, List<Peer> peers) {
+        this.httpRequest = httpRequest;
+        this.peers = peers;
     }
 
     @Override
     public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                sendRequest(outgoingQueue.take());
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+        try {
+            sendRequest(httpRequest);
+        } catch (InterruptedException e) {
+            logger.error("Interrupted while sending HttpRequest.");
         }
     }
 
     private void sendRequest(HttpRequest request) throws InterruptedException {
-        logger.debug("Sending request {} {}", request.getMethod(), request.getPath());
+        logger.debug("Trying to send request to {} {} {}", request.getIp() + ":" + request.getPort(),
+                request.getMethod(), request.getPath());
 
         try {
-            Socket socket = new Socket(request.getIp(), request.getPort());
+            Socket socket = new Socket();
+            socket.connect(new InetSocketAddress(request.getIp(), request.getPort()), 1000);
+
             OutputStream output = socket.getOutputStream();
             output.write(request.getBytes());
 
@@ -46,18 +50,20 @@ public class HttpRequestSender implements Runnable {
             output.close();
             socket.close();
         } catch (Exception e) {
-            logger.error("Failed to create socket on port " + outputPort, e);
+            logger.error("Failed to create socket to " + request.getIp().getHostAddress() + ":" + request.getPort());
+
+            // Mark peer as unreachable
+            synchronized (peers) {
+                for (Peer peer : peers) {
+                    String requestIp = request.getIp().getHostAddress();
+                    int requestPort = request.getPort();
+                    if (peer.getIp().equals(requestIp) && peer.getPort() == requestPort) {
+                        peer.setReachable(false);
+                    }
+                }
+            }
         }
 
-    }
-
-    private String getIp() {
-        try {
-            return InetAddress.getLocalHost().toString();
-        } catch (UnknownHostException e) {
-            logger.error("Failed to get ip. ", e);
-            return "";
-        }
     }
 
     public void setOutputPort(int outputPort) {

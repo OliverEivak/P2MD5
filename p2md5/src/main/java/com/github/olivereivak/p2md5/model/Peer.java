@@ -6,6 +6,8 @@ public class Peer {
 
     private int port;
 
+    private boolean reachable = true;
+
     public Peer(String ip, int port) {
         super();
         this.ip = ip;
@@ -26,6 +28,14 @@ public class Peer {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public boolean isReachable() {
+        return reachable;
+    }
+
+    public void setReachable(boolean reachable) {
+        this.reachable = reachable;
     }
 
 }

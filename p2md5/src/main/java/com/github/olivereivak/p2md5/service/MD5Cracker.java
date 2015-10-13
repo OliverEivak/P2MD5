@@ -18,16 +18,14 @@ public class MD5Cracker implements Runnable {
 
     private static Logger logger = LoggerFactory.getLogger(MD5Cracker.class);
 
-    private static final int END_CHAR = 126;
-
-    private static final int START_CHAR = 32;
+    public static final int START_CHAR = 32;
+    public static final int END_CHAR = 126;
 
     private String match = null;
 
     private long startTime;
 
     private double hashesTotal = 0;
-
     private double hashesDone;
 
     private MessageDigest messageDigest;
@@ -94,6 +92,7 @@ public class MD5Cracker implements Runnable {
 
             String hashValue = hash(range);
             if (hashValue.equals(checkMD5.getMd5())) {
+                logger.info("Found match {} for {}", range, hashValue);
                 match = range;
             }
         }

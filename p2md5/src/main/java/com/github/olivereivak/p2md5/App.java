@@ -3,7 +3,6 @@ package com.github.olivereivak.p2md5;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -18,12 +17,16 @@ import com.github.olivereivak.p2md5.model.HttpRequest;
 import com.github.olivereivak.p2md5.model.Peer;
 import com.github.olivereivak.p2md5.model.protocol.AnswerMD5;
 import com.github.olivereivak.p2md5.model.protocol.CheckMD5;
+import com.github.olivereivak.p2md5.model.protocol.ResourceReply;
 import com.github.olivereivak.p2md5.server.HttpRequestSender;
 import com.github.olivereivak.p2md5.server.SimpleHttpServer;
 import com.github.olivereivak.p2md5.service.CommandListener;
 import com.github.olivereivak.p2md5.service.MD5Cracker;
 import com.github.olivereivak.p2md5.service.PeerService;
 import com.github.olivereivak.p2md5.service.RequestProcessor;
+import com.github.olivereivak.p2md5.service.TaskManager;
+import com.github.olivereivak.p2md5.utils.HttpUtils;
+import com.github.olivereivak.p2md5.utils.JsonUtils;
 
 public class App {
 
@@ -44,8 +47,18 @@ public class App {
     private BlockingQueue<HttpRequest> outgoingRequests = new LinkedBlockingQueue<>();
 
     private List<Thread> workers = new ArrayList<>();
+
+    /**
+     * Local work and results to send out
+     */
     private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
     private BlockingQueue<AnswerMD5> results = new LinkedBlockingQueue<>();
+
+    /**
+     * Work to distribute and returned results
+     */
+    private BlockingQueue<AnswerMD5> arrivedResults = new LinkedBlockingQueue<>();
+    private BlockingQueue<ResourceReply> arrivedResourceReplies = new LinkedBlockingQueue<>();
 
     private SimpleHttpServer simpleHttpServer;
     private RequestProcessor requestProcessor;
@@ -58,9 +71,10 @@ public class App {
     }
 
     private void init() throws InterruptedException {
+        logger.info("Starting application.");
+
         startCommandListener();
         startRequestProcessor();
-        startRequestSender();
 
         peers.addAll(PeerService.getPeersFromFile("machines.txt"));
         peers.addAll(PeerService.getPeersFromURL(MACHINES_URL));
@@ -73,6 +87,11 @@ public class App {
             // Execute commands
             while (!commandQueue.isEmpty()) {
                 executeCommand(commandQueue.take());
+            }
+
+            // Send requests
+            while (!outgoingRequests.isEmpty()) {
+                startRequestSender(outgoingRequests.take());
             }
 
             // Check if all workers are alive
@@ -111,12 +130,14 @@ public class App {
     }
 
     private void startRequestProcessor() {
-        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, work, peers);
+        requestProcessor = new RequestProcessor(arrivedRequests, outgoingRequests, arrivedResults,
+                arrivedResourceReplies, work, peers);
         newThread(requestProcessor, "request-processor");
     }
 
-    private void startRequestSender() {
-        HttpRequestSender requestSender = new HttpRequestSender(outgoingRequests);
+    private void startRequestSender(HttpRequest httpRequest) {
+        HttpRequestSender requestSender = new HttpRequestSender(httpRequest, peers);
+        requestSender.setOutputPort(simpleHttpServer.getPort());
         newThread(requestSender, "request-sender");
     }
 
@@ -124,6 +145,13 @@ public class App {
         MD5Cracker md5Cracker = new MD5Cracker(results, checkMD5);
         Thread thread = newThread(md5Cracker, getMD5CrackerThreadName());
         workers.add(thread);
+    }
+
+    private void startTaskManager(String hash) {
+        TaskManager taskManager = new TaskManager(hash, peers, outgoingRequests, arrivedResourceReplies,
+                arrivedResults);
+        taskManager.setOutputPort(simpleHttpServer.getPort());
+        newThread(taskManager, "task-manager");
     }
 
     private String getMD5CrackerThreadName() {
@@ -144,6 +172,9 @@ public class App {
         try {
             HttpRequest request = new HttpRequest("POST", InetAddress.getByName(result.getIp()), result.getPort(),
                     "/answermd5", "1.0");
+            result.setIp(HttpUtils.getIp());
+            result.setPort(simpleHttpServer.getPort());
+            request.setBody(JsonUtils.toJson(result));
             outgoingRequests.put(request);
         } catch (UnknownHostException e) {
             logger.error("Failed to get InetAddress for request receiver. ", e);
@@ -168,21 +199,16 @@ public class App {
                 break;
             case COMMAND_CRACK:
                 if (!command.getParameters().isEmpty()) {
-                    logger.info("Starting to crack md5 hash.");
-                    int sendPort = DEFAULT_PORT;
-                    if (simpleHttpServer != null) {
-                        sendPort = simpleHttpServer.getPort();
-                    }
-                    CheckMD5 checkMD5 = new CheckMD5("127.0.0.1", sendPort, "1", command.getParameters().get(1),
-                            Arrays.asList(command.getParameters().get(0)));
-                    work.put(checkMD5);
+                    logger.info("Starting TaskManager.");
+                    String hash = command.getParameters().get(0);
+                    startTaskManager(hash);
                 }
                 break;
         }
     }
 
     private Thread newThread(Runnable target, String name) {
-        logger.info("Starting {}", name);
+        logger.trace("Starting {}", name);
         Thread thread = new Thread(target);
         thread.setName(name);
         thread.setDaemon(true);

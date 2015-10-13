@@ -21,9 +21,9 @@ public class MD5CrackerTest {
 
     @Test
     public void test() throws InterruptedException {
-        String range = "???";
-        String hash = "a92c97fe71775f00f4e826e2852fc511";
-        String match = "}}y";
+        String range = "??";
+        String hash = "eab71244afb687f16d8c4f5ee9d6ef0e";
+        String match = "nn";
 
         CheckMD5 checkMD5 = new CheckMD5("1.2.3.4", 1234, "1", hash, Arrays.asList(range));
 
@@ -46,9 +46,9 @@ public class MD5CrackerTest {
 
     @Test
     public void testTwoThreads() throws InterruptedException {
-        String range = "???";
-        String hash = "a92c97fe71775f00f4e826e2852fc511";
-        String match = "}}y";
+        String range = "??";
+        String hash = "eab71244afb687f16d8c4f5ee9d6ef0e";
+        String match = "nn";
 
         CheckMD5 checkMD5 = new CheckMD5("1.2.3.4", 1234, "1", hash, Arrays.asList(range));
 
@@ -59,9 +59,9 @@ public class MD5CrackerTest {
         thread.setDaemon(true);
         thread.start();
 
-        String range2 = "????";
-        String hash2 = "e61e7de603852182385da5e907b4b232";
-        String match2 = "hhhh";
+        String range2 = "???";
+        String hash2 = "f98ed07a4d5f50f7de1410d905f1477f";
+        String match2 = "io";
 
         checkMD5 = new CheckMD5("2.3.4.5", 2345, "2", hash2, Arrays.asList(range2));
 

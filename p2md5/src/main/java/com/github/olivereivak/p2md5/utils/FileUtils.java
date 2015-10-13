@@ -15,7 +15,7 @@ public class FileUtils {
     private static final Logger logger = LoggerFactory.getLogger(FileUtils.class);
 
     public static InputStream getFileAsStream(String filePath) {
-        logger.info(format("Getting file from %s", filePath));
+        logger.debug(format("Getting file from %s", filePath));
         File file = new File(filePath);
 
         if (file.exists()) {
@@ -26,7 +26,7 @@ public class FileUtils {
             }
         }
 
-        logger.info(format("File %s does not exist. Trying to load from classpath.", filePath));
+        logger.debug(format("File %s does not exist. Trying to load from classpath.", filePath));
 
         return FileUtils.class.getClassLoader().getResourceAsStream(filePath);
     }

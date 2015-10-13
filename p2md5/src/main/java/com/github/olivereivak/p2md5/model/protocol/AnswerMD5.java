@@ -26,6 +26,10 @@ public class AnswerMD5 {
     @JsonProperty("resultstring")
     private String match;
 
+    public AnswerMD5() {
+
+    }
+
     public AnswerMD5(String ip, int port, String id, String hash, String match) {
         super();
         this.ip = ip;
