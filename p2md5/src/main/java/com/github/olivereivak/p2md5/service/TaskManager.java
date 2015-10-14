@@ -30,7 +30,7 @@ public class TaskManager implements Runnable {
 
     private static final SecureRandom random = new SecureRandom();
 
-    private static final int MAX_WILDCARDS = 2;
+    private static final int MAX_WILDCARDS = 3;
 
     private String hash;
     private AnswerMD5 match;
@@ -71,6 +71,9 @@ public class TaskManager implements Runnable {
         long startTime = System.nanoTime();
 
         try {
+
+            int i = 0;
+
             while (true) {
                 // Send resource requests
                 sendResourceRequests();
@@ -85,7 +88,7 @@ public class TaskManager implements Runnable {
                     processResult(arrivedResults.take());
                 }
 
-                // Check if work is done
+                // Check if match was found
                 if (match != null) {
                     logger.info("Match found! " + match.getMatch());
                     break;
@@ -104,6 +107,13 @@ public class TaskManager implements Runnable {
                     logger.info("Checked {} of {} ranges or {} of {} hashes. ", done, totalRanges,
                             hashesPerRange * done, hashesPerRange * totalRanges);
                     startTime = System.nanoTime();
+                }
+
+                // Reset peer reachable status once in a while
+                i++;
+                if (i > 20 * 60) {
+                    resetPeerReachableStatuses();
+                    i = 0;
                 }
 
                 // Sleep
@@ -196,6 +206,16 @@ public class TaskManager implements Runnable {
                     ranges.remove(result.getId());
                 } else {
                     logger.warn("Received RESULT_NOT_FOUND answer, but ID does not match any ranges. ");
+                }
+            }
+        }
+    }
+
+    private void resetPeerReachableStatuses() {
+        synchronized (peers) {
+            for (Peer peer : peers) {
+                if (!peer.isReachable()) {
+                    peer.setReachable(true);
                 }
             }
         }

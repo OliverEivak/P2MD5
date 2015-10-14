@@ -39,6 +39,8 @@ public class HttpRequestSender implements Runnable {
         logger.debug("Trying to send request to {} {} {}", request.getIp() + ":" + request.getPort(),
                 request.getMethod(), request.getPath());
 
+        // TODO: check ip/port
+
         try {
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(request.getIp(), request.getPort()), 1000);

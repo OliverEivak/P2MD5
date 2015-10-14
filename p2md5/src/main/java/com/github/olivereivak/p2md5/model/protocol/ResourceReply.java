@@ -1,9 +1,13 @@
 package com.github.olivereivak.p2md5.model.protocol;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 public class ResourceReply {
 
     private String ip;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private int port;
 
     private String id;

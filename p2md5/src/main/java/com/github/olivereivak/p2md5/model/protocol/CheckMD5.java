@@ -3,12 +3,15 @@ package com.github.olivereivak.p2md5.model.protocol;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CheckMD5 {
 
     private String ip;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private int port;
 
     private String id;
