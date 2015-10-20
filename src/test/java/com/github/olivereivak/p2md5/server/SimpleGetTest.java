@@ -24,7 +24,7 @@ public class SimpleGetTest {
         request.setPort(80);
         request.setPath("/~Oliver.Eivak/machines.txt");
         request.setMethod("GET");
-        request.setVersion("1.0");
+        request.setVersion("HTTP/1.0");
         Map<String, String> headers = new HashMap<>();
         headers.put("User-Agent", "P2MD5/1.0");
         request.setHeaders(headers);

@@ -49,14 +49,11 @@ public class App {
     private List<Thread> workers = new ArrayList<>();
 
     /**
-     * Local work and results to send out
+     * Local work and results to send out.
      */
     private BlockingQueue<CheckMD5> work = new LinkedBlockingQueue<>();
     private BlockingQueue<AnswerMD5> results = new LinkedBlockingQueue<>();
 
-    /**
-     * Work to distribute and returned results
-     */
     private BlockingQueue<AnswerMD5> arrivedResults = new LinkedBlockingQueue<>();
     private BlockingQueue<ResourceReply> arrivedResourceReplies = new LinkedBlockingQueue<>();
 
@@ -65,12 +62,19 @@ public class App {
 
     private List<Peer> peers = Collections.synchronizedList(new ArrayList<>());
 
-    public static void main(String[] args) throws InterruptedException {
+    /*
+     * For showing time spent not working.
+     */
+    private double idleStartTime = 0;
+    private boolean startedWork = false;
+    private int idleMessageCount = 0;
+
+    public static void main(String[] args) {
         App app = new App();
         app.init();
     }
 
-    private void init() throws InterruptedException {
+    private void init() {
         logger.info("Starting application.");
 
         startCommandListener();
@@ -79,10 +83,15 @@ public class App {
         peers.addAll(PeerService.getPeersFromFile("machines.txt"));
         peers.addAll(PeerService.getPeersFromURL(MACHINES_URL));
 
-        run();
+        try {
+            run();
+        } catch (InterruptedException e) {
+            logger.info("Stopping application.");
+        }
     }
 
     private void run() throws InterruptedException {
+
         while (true) {
             // Execute commands
             while (!commandQueue.isEmpty()) {
@@ -100,7 +109,10 @@ public class App {
             // Start new workers
             while (!work.isEmpty() && workers.size() < MAX_WORKERS) {
                 startMD5Cracker(work.take());
+                startedWork = true;
             }
+
+            calculateIdleTime();
 
             // Send results back
             while (!results.isEmpty()) {
@@ -109,7 +121,25 @@ public class App {
                 sendAnswer(result);
             }
 
-            Thread.sleep(100);
+            Thread.sleep(50);
+        }
+    }
+
+    private void calculateIdleTime() {
+        if (startedWork) {
+            if (workers.size() < MAX_WORKERS && idleStartTime == 0) {
+                idleStartTime = System.nanoTime();
+            } else if (idleStartTime != 0) {
+                logger.info("(Partially) idle for {} ms.", (System.nanoTime() - idleStartTime) / 1000000);
+                idleStartTime = 0;
+                idleMessageCount++;
+            }
+
+            if (idleMessageCount > 10) {
+                logger.info("Idle.");
+                startedWork = false;
+                idleMessageCount = 0;
+            }
         }
     }
 
@@ -171,7 +201,7 @@ public class App {
     private void sendAnswer(AnswerMD5 result) {
         try {
             HttpRequest request = new HttpRequest("POST", InetAddress.getByName(result.getIp()), result.getPort(),
-                    "/answermd5", "1.0");
+                    "/answermd5", "HTTP/1.0");
             result.setIp(HttpUtils.getIp());
             result.setPort(simpleHttpServer.getPort());
             request.setBody(JsonUtils.toJson(result));

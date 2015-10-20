@@ -13,7 +13,6 @@ public class AnswerMD5 {
     private String ip;
 
     @JsonSerialize(using = ToStringSerializer.class)
-    // TODO: deserialize to string
     private int port;
 
     private String id;

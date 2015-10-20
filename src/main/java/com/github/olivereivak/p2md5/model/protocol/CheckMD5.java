@@ -73,8 +73,4 @@ public class CheckMD5 {
         this.ranges = ranges;
     }
 
-    // TODO: wildcard and symbolRange
-    // private String wildcard;
-    // private String symbolRange;
-
 }

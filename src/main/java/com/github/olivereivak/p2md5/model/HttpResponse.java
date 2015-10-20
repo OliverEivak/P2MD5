@@ -11,7 +11,7 @@ public class HttpResponse {
 
     private String status;
 
-    private String version = "1.0";
+    private String version = "HTTP/1.0";
 
     private String body;
 
@@ -19,7 +19,7 @@ public class HttpResponse {
 
     public String toString() {
         String response = "";
-        response += "HTTP/" + version + " " + status + CRLF;
+        response += version + " " + status + CRLF;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             response += entry.getKey() + ": " + entry.getValue() + CRLF;
         }

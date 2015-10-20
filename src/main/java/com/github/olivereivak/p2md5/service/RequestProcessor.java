@@ -62,6 +62,7 @@ public class RequestProcessor implements Runnable {
 
     private void processRequest(HttpRequest request) throws InterruptedException {
         logger.debug("Processing request {} {}", request.getMethod(), request.getPath());
+        logger.trace(request.toString());
 
         MultiValueMap<String, String> queryParams = HttpUtils.parseQueryParams(request.getPath());
 
@@ -109,49 +110,63 @@ public class RequestProcessor implements Runnable {
         }
 
         if (work.size() < MAX_WORK_IN_QUEUE) {
-            // TODO: atm using sender ip, but port from json
-            HttpRequest response = new HttpRequest("POST", request.getIp(), Integer.valueOf(sendport.get()),
-                    "/resourcereply", "1.0");
-            ResourceReply resourceReply = new ResourceReply(HttpUtils.getIp(), outputPort, id.orElse(""), 100);
-            response.setBody(JsonUtils.toJson(resourceReply));
-            outgoingQueue.put(response);
+            createResourceReply(request, sendip, sendport, id);
         }
 
         if (ttl.isPresent() && Integer.valueOf(ttl.get()) > 1) {
             int newTTL = Integer.valueOf(ttl.get()) - 1;
 
-            // TODO: test this
             MultiValueMap<String, String> forwardParams = queryParams;
             forwardParams.remove("ttl");
             forwardParams.put("ttl", String.valueOf(newTTL));
 
             Collection<String> forwardNoAsk = forwardParams.getCollection("noask");
-            forwardNoAsk.add(HttpUtils.getIp() + "_" + outputPort);
+            if (!forwardNoAsk.contains(HttpUtils.getIp() + "_" + outputPort)) {
+                forwardNoAsk.add(HttpUtils.getIp() + "_" + outputPort);
+            }
 
             String path = "/resource?" + HttpUtils.queryParamsToString(forwardParams);
+            createResourceRequests(path, noask);
+        }
 
-            // Broadcast to all known ip's except those in noask parameters.
-            synchronized (peers) {
-                for (Peer peer : peers) {
-                    if (!peer.isReachable()) {
-                        continue;
-                    }
+    }
 
-                    if (!noask.contains(peer.getIp() + "_" + peer.getPort())) {
-                        try {
-                            HttpRequest forward;
-                            forward = new HttpRequest("GET", InetAddress.getByName(peer.getIp()), peer.getPort(), path,
-                                    "1.0");
-                            outgoingQueue.put(forward);
-                        } catch (UnknownHostException e) {
-                            logger.error("Failed to get InetAddress.", e);
-                        }
+    private void createResourceReply(HttpRequest request, Optional<String> sendip, Optional<String> sendport,
+            Optional<String> id) throws InterruptedException {
+        InetAddress ip = request.getIp();
+        try {
+            ip = InetAddress.getByName(sendip.get());
+        } catch (UnknownHostException e) {
+            logger.error("Error using ip from ResourceRequest.", e);
+        }
+
+        HttpRequest response = new HttpRequest("POST", ip, Integer.valueOf(sendport.get()), "/resourcereply",
+                "HTTP/1.0");
+        ResourceReply resourceReply = new ResourceReply(HttpUtils.getIp(), outputPort, id.orElse(""), 100);
+        response.setBody(JsonUtils.toJson(resourceReply));
+        outgoingQueue.put(response);
+    }
+
+    private void createResourceRequests(String path, Collection<String> noask) throws InterruptedException {
+        // Broadcast to all known ip's except those in noask parameters.
+        synchronized (peers) {
+            for (Peer peer : peers) {
+                if (!peer.isReachable()) {
+                    continue;
+                }
+
+                if (!noask.contains(peer.getIp() + "_" + peer.getPort())) {
+                    try {
+                        HttpRequest forward;
+                        forward = new HttpRequest("GET", InetAddress.getByName(peer.getIp()), peer.getPort(), path,
+                                "HTTP/1.0");
+                        outgoingQueue.put(forward);
+                    } catch (UnknownHostException e) {
+                        logger.error("Failed to get InetAddress.", e);
                     }
                 }
             }
-
         }
-
     }
 
     private void processResourceReply(HttpRequest request, MultiValueMap<String, String> queryParams) {
@@ -180,7 +195,7 @@ public class RequestProcessor implements Runnable {
 
     private void processCheckRequest(HttpRequest request) {
         if (work.size() >= MAX_WORK_IN_QUEUE) {
-            logger.info("Discarding checkmd5 request, work queue full.");
+            logger.debug("Discarding checkmd5 request, work queue full.");
             return;
         }
 

@@ -111,7 +111,7 @@ public class TaskManager implements Runnable {
 
                 // Reset peer reachable status once in a while
                 i++;
-                if (i > 20 * 60) {
+                if (i > 20 * 60) { // ~ once a minute
                     resetPeerReachableStatuses();
                     i = 0;
                 }
@@ -155,7 +155,7 @@ public class TaskManager implements Runnable {
 
                 try {
                     HttpRequest request = new HttpRequest("GET", InetAddress.getByName(peer.getIp()), peer.getPort(),
-                            resourceRequest.toString(), "1.0");
+                            resourceRequest.toString(), "HTTP/1.0");
                     outgoingRequests.put(request);
                 } catch (UnknownHostException e) {
                     logger.error("Failed to get InetAddress for ResourceRequest receiver.", e);
@@ -181,7 +181,7 @@ public class TaskManager implements Runnable {
         CheckMD5 checkMD5 = new CheckMD5(HttpUtils.getIp(), outputPort, key, hash, Arrays.asList(range));
 
         try {
-            HttpRequest request = new HttpRequest("POST", InetAddress.getByName(ip), port, "/checkmd5", "1.0");
+            HttpRequest request = new HttpRequest("POST", InetAddress.getByName(ip), port, "/checkmd5", "HTTP/1.0");
             request.setBody(JsonUtils.toJson(checkMD5));
             outgoingRequests.put(request);
         } catch (UnknownHostException e) {
@@ -195,7 +195,7 @@ public class TaskManager implements Runnable {
     private void processResult(AnswerMD5 result) {
         if (result != null) {
             if (result.getResult() == AnswerMD5.RESULT_FOUND) {
-                // TODO: double check result
+                // TODO: check result
                 if (ranges.containsKey(result.getId())) {
                     match = result;
                 } else {

@@ -1,5 +1,7 @@
 package com.github.olivereivak.p2md5.service;
 
+import static java.lang.String.format;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.BlockingQueue;
@@ -50,8 +52,6 @@ public class MD5Cracker implements Runnable {
         startTime = System.nanoTime();
 
         for (String range : checkMD5.getRanges()) {
-            logger.debug("range={} hash={}", range, checkMD5.getMd5());
-
             int wildcardCount = StringUtils.countMatches(range, '?');
             hashesTotal += Math.pow(END_CHAR - START_CHAR - 1, wildcardCount);
 
@@ -64,13 +64,15 @@ public class MD5Cracker implements Runnable {
     }
 
     private void printProgress() {
-        double duration = (System.nanoTime() - startTime) / 1000000000;
-        double hps = hashesDone / duration;
-        logger.debug("{}/{} time={} hps={}", hashesDone, hashesTotal, duration, hps);
+        double durationMillis = (System.nanoTime() - startTime) / 1000000;
+        double durationSeconds = durationMillis / 1000;
+        double hps = hashesDone / durationSeconds;
+        logger.info(format("%s %.0f/%.0f time=%.3f hps=%.0f", checkMD5.getRanges().toString(), hashesDone, hashesTotal,
+                durationSeconds, hps));
     }
 
     public void work(String range) {
-        // Stop working if match is found
+        // Stop working if a match is found
         if (match != null) {
             return;
         }

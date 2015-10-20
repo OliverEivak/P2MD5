@@ -50,11 +50,13 @@ public class HttpRequest {
 
     private String getPostRequest() {
         String request = "";
-        request += method + " " + path + " HTTP/" + version + " " + CRLF;
+        request += method + " " + path + " " + version + " " + CRLF;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             request += entry.getKey() + ": " + entry.getValue() + CRLF;
         }
-        request += "Content-Length: " + body.length() + CRLF;
+        if (!headers.containsKey("Content-Length")) {
+            request += "Content-Length: " + body.length() + CRLF;
+        }
         request += CRLF;
         request += body;
         return request;
@@ -62,7 +64,7 @@ public class HttpRequest {
 
     private String getGetRequest() {
         String request = "";
-        request += method + " " + path + " HTTP/" + version + " " + CRLF;
+        request += method + " " + path + " " + version + " " + CRLF;
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             request += entry.getKey() + ": " + entry.getValue() + CRLF;
         }

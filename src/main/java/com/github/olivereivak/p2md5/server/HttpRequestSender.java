@@ -1,6 +1,7 @@
 package com.github.olivereivak.p2md5.server;
 
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.olivereivak.p2md5.model.HttpRequest;
 import com.github.olivereivak.p2md5.model.Peer;
+import com.github.olivereivak.p2md5.utils.HttpUtils;
 
 public class HttpRequestSender implements Runnable {
 
@@ -39,13 +41,17 @@ public class HttpRequestSender implements Runnable {
         logger.debug("Trying to send request to {} {} {}", request.getIp() + ":" + request.getPort(),
                 request.getMethod(), request.getPath());
 
-        // TODO: check ip/port
+        // Don't sent messages to yourself
+        if (request.getIp().equals(HttpUtils.getIp()) && request.getPort() == outputPort) {
+            return;
+        }
 
         try {
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(request.getIp(), request.getPort()), 1000);
 
             OutputStream output = socket.getOutputStream();
+            logger.trace(request.toString());
             output.write(request.getBytes());
 
             output.flush();
@@ -53,19 +59,19 @@ public class HttpRequestSender implements Runnable {
             socket.close();
         } catch (Exception e) {
             logger.error("Failed to create socket to " + request.getIp().getHostAddress() + ":" + request.getPort());
+            markPeerUnreachable(request.getIp(), request.getPort());
+        }
 
-            // Mark peer as unreachable
-            synchronized (peers) {
-                for (Peer peer : peers) {
-                    String requestIp = request.getIp().getHostAddress();
-                    int requestPort = request.getPort();
-                    if (peer.getIp().equals(requestIp) && peer.getPort() == requestPort) {
-                        peer.setReachable(false);
-                    }
+    }
+
+    private void markPeerUnreachable(InetAddress ip, int port) {
+        synchronized (peers) {
+            for (Peer peer : peers) {
+                if (peer.getIp().equals(ip.getHostAddress()) && peer.getPort() == port) {
+                    peer.setReachable(false);
                 }
             }
         }
-
     }
 
     public void setOutputPort(int outputPort) {
